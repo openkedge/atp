@@ -1,0 +1,54 @@
+capabilities:
+  # The SDK owns the entire TCB/crypto path; the application deals only with
+  # schemas, entities, and typed values (DESIGN §2). Authority below is the
+  # producer's, deny-by-default, and MUST be explicit.
+  network:
+    # The emit() call path performs NO network I/O. Transmission is off-call-path,
+    # driven by the durable buffer's flush/retransmit worker (ATP-0001 §8, DESIGN §6).
+    outbound_allowed: true
+    on_call_path: false
+    allowed_destinations:
+      - configured_collector_endpoint  # a single operator-configured transport target
+    notes: >
+      No implicit fan-out. OpaqueRef payloads are stored via the configured
+      opaque-store, never fetched by the producer.
+  filesystem:
+    # Durable state required by ATP-0001 §8.1-§8.2: the sealed-batch buffer and the
+    # monotonic epoch store. Both live under an operator-configured spool directory.
+    read_allowed: true
+    write_allowed: true
+    allowed_paths:
+      - configured_durable_buffer_dir
+      - configured_epoch_store_path
+  database:
+    allowed: false
+    max_reads_per_request: 0
+    max_writes_per_request: 0
+  secrets:
+    # The Ed25519 signing seed and signing_key_id are TCB-held and never exposed
+    # to application code or to any canonical field (ATP-0001 §7.5, §7.7).
+    allowed_environment_variables:
+      - ATP_SIGNING_KEY_REF     # opaque reference/handle to key material, not the key bytes
+    key_material_app_visible: false
+  resources:
+    # Admission requirements are byte-exactness and §8 invariants, not throughput.
+    # These are monitoring budgets, not admission gates (see operational invariants).
+    max_latency_ms: null
+    max_memory_mb: null
+    max_cpu_ms: null
+    max_concurrency: null
+  background_work:
+    # The flush/ack/retransmit worker is off-call-path background work.
+    allowed: true
+    description: durable-buffer flush, transmit, await-ack, and byte-identical retransmit (ATP-0001 §8.1)
+  dependencies:
+    # Deny-by-default runtime dependency allowlist. The crypto path uses only the
+    # JDK platform provider; no third-party cryptography is admitted.
+    runtime_allowlist:
+      - "java.base (JDK >= 17): java.security SHA-256 and Ed25519, java.lang reflection, java.time"
+    third_party_crypto_allowed: false
+    build_tools: []  # dependency-free build (javac); no Maven/Gradle/network required
+  telemetry:
+    required_fields:
+      - correlation_id
+      - protocol_version

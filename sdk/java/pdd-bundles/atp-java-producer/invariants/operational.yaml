@@ -1,0 +1,74 @@
+operational_invariants:
+  # O — capability, resource, dependency, and authority constraints on the
+  # running producer. Authority is deny-by-default per capability-manifest.yaml.
+
+  - id: capability-manifest-conformance
+    statement: >
+      Runtime authority and resource usage MUST conform to capability-manifest.yaml.
+    severity: must
+    rationale: Operational authority must be explicit and bounded (PDD bundle spec).
+    validation:
+      - sandbox_policy_check
+      - runtime_instrumentation
+
+  - id: tcb-owns-trust-path
+    statement: >
+      Application code MUST NOT be able to set or observe sequence, boot_epoch,
+      previous_root, merkle_root, batch_root, or signing material; these are
+      SDK-internal (TCB).
+    severity: must
+    rationale: The app never touches the trust path (DESIGN §2); exposing it invites forgery/drift.
+    validation:
+      - api_surface_review
+      - sandbox_policy_check
+
+  - id: jdk-only-crypto
+    statement: >
+      SHA-256 and Ed25519 MUST be provided by the JDK platform provider
+      (java.security, JDK >= 17); no third-party cryptography dependency is admitted.
+    severity: must
+    rationale: A vetted platform provider and a dependency-free build reduce supply-chain and correctness risk.
+    validation:
+      - dependency_scan
+      - crypto_roundtrip_test
+
+  - id: no-network-on-call-path
+    statement: >
+      The emit() call MUST perform no synchronous network I/O; transmission,
+      acknowledgement, and retransmission run as off-call-path background work.
+    severity: must
+    rationale: Emit must be a local, bounded, non-blocking-on-network operation (DESIGN §6).
+    validation:
+      - runtime_instrumentation
+      - call_path_trace
+
+  - id: durable-before-transmit
+    statement: >
+      A sealed batch MUST be persisted to the durable buffer before its first
+      transmission and retained byte-for-byte until acknowledgement.
+    severity: must
+    rationale: Crash recovery and exact retransmission depend on durable sealed bytes (ATP-0001 §8.1, §8.3).
+    validation:
+      - fault_injection_test
+      - filesystem_trace
+
+  - id: opaque-not-inline
+    statement: >
+      Unbounded or untrusted diagnostics (log prose, stack traces, request/response
+      bodies) MUST be stored out of band as an OpaqueRef and MUST NOT be split
+      across canonical STRING/BYTES fields to bypass the boundary.
+    severity: must
+    rationale: The 4096-byte scalar ceiling is a parser bound, not permission for inline prose (ATP-0001 §12.4).
+    validation:
+      - static_analysis
+      - unit_tests   # slf4j/logback opaque bridge routes WARN+ to OpaqueRef
+
+  - id: key-registry-one-to-one
+    statement: >
+      Within one producer history each 8-byte signing_key_id MUST map to exactly
+      one Ed25519 public key and each public key to exactly one key ID; a
+      conflicting registration MUST fail closed.
+    severity: must
+    rationale: A one-to-one binding prevents key-substitution ambiguity (ATP-0001 §7.7).
+    validation:
+      - config_validation_test

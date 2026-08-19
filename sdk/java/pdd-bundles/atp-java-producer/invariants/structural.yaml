@@ -1,0 +1,115 @@
+structural_invariants:
+  # S — schema, interface, serialization, and error-shape constraints.
+  # Each maps to a concrete validator in validators/validation-plan.yaml.
+
+  - id: manifest-canonical-cbor
+    statement: >
+      A schema manifest derived from an annotated Java record MUST serialize to
+      deterministic CBOR (RFC 8949 §4.2.1): map keys are the fixed ATP-0002 §2
+      integers emitted in bytewise-lexicographic order, shortest-form integers,
+      no indefinite-length items, no duplicate keys, text as UTF-8 major type 3,
+      byte strings as major type 2, and fields ordered by slot / enum members by
+      ordinal.
+    severity: must
+    rationale: >
+      Canonical bytes are the only thing hashed; any nondeterminism forfeits the
+      content-address and cross-language digest identity (ATP-0001 §1.6).
+    validation:
+      - golden_vector_bytes   # CV-CORE-001.schema_manifest_canonical_cbor, schema-vectors.json
+      - property_based_test   # key ordering / shortest-form for random manifests
+
+  - id: schema-digest-content-address
+    statement: >
+      H_S MUST equal SHA-256(D_MANIFEST || CanonicalCBOR(manifest)) with
+      D_MANIFEST = "ATP/0.1/schema-manifest", computed over the manifest bytes
+      and never over Java reflection artifacts.
+    severity: must
+    rationale: Content-addressed identity binds the schema to its exact bytes (ATP-0002 §6.4).
+    validation:
+      - golden_vector_bytes   # k8s.pod.transition digest == b8fafb40...4103f2
+
+  - id: record-canonical-layout
+    statement: >
+      A record MUST encode as uvarint(schema_ref) || uvarint(entity_ref) ||
+      uvarint(time_delta) || presence_bitmap || positional_values, using minimal
+      LEB128 uvarints and ZigZag for signed values, with the presence bitmap
+      carrying ceil(m/8) bytes for m optional fields (LSB-first, unused high bits
+      zero) and values emitted in increasing slot order.
+    severity: must
+    rationale: The record layout and canonical integers are the unit of Merkle commitment (ATP-0001 §6).
+    validation:
+      - golden_vector_bytes   # CV-CORE-001.records[*].bytes
+      - property_based_test   # minimal-varint / bitmap-padding invariants
+
+  - id: batch-wire-layout
+    statement: >
+      A batch MUST serialize the 14 ATP-0001 §7.1 fields in order with LP framing
+      (uvarint(len) || bytes), total size at most 16 MiB, record_count in
+      [1, 65535], unique schema digests, canonical unique entity IDs, and no
+      trailing bytes.
+    severity: must
+    rationale: The wire batch is the transmitted evidence artifact; framing must be unambiguous.
+    validation:
+      - golden_vector_bytes   # CV-CORE-001.batch_wire
+      - contract_tests        # trailing-byte / count-bound rejection
+
+  - id: field-def-shape
+    statement: >
+      Each field-def MUST be a CBOR map with keys 1=slot, 2=name, 3=type,
+      4=required, and OPTIONAL 5=unit, 6=enum_ref (present iff type==ENUM),
+      7=constraints; a decode-time default (e.g. STRING max_len 1024) MUST NOT be
+      materialized into the manifest.
+    severity: must
+    rationale: >
+      Materializing decode-time defaults would change the digest and diverge from
+      sibling SDKs (DESIGN §5.6: `reason` carries no constraints key).
+    validation:
+      - golden_vector_bytes
+      - property_based_test
+
+  - id: entity-id-syntax
+    statement: >
+      An EntityId MUST be ASCII namespace:resource_type:canonical_identifier where
+      namespace and resource_type match [A-Za-z0-9][A-Za-z0-9._-]* and the
+      identifier is non-empty printable ASCII (0x21..0x7e) with uppercase %HH
+      escapes for non-ASCII UTF-8 bytes (literal percent = %25); at most 1024 bytes.
+    severity: must
+    rationale: Entity identity is the join key across evidence; it must be canonical and stable (ATP-0001 §4.1).
+    validation:
+      - json_schema_validation   # request.schema.json pattern
+      - unit_tests               # positive/negative EntityId cases
+
+  - id: type-mapping-total
+    statement: >
+      Every record component MUST map to exactly one of the 14 ATP value-type
+      codes (BOOL..DURATION_MS) via its Java type plus optional @AtpType; a
+      component with no mapping, an ENUM component lacking @AtpEnum, @MaxLen > 4096,
+      or a duplicate @Field(name) MUST fail closed at bind/build time.
+    severity: must
+    rationale: A silent or ambiguous mapping would produce a wrong, unverifiable schema (DESIGN §5.4).
+    validation:
+      - build_time_rejection
+      - unit_tests
+
+  - id: opaque-ref-structure
+    statement: >
+      An @Opaque value MUST encode as a canonical OpaqueRef = lp_string(opaque_id)
+      || lp_string(media_type) || uvarint(byte_length) || 32-byte payload_digest
+      || lp_string(storage_uri) || uvarint(retention_class), 1..4096 bytes total,
+      media_type exactly token/token in lowercase, payload_digest = SHA-256 of the
+      stored payload, no trailing bytes.
+    severity: must
+    rationale: Untrusted payloads carry only bounded metadata plus an integrity digest (ATP-0001 §12.2).
+    validation:
+      - golden_vector_bytes   # conformance-vectors.json opaque_vectors
+      - unit_tests
+
+  - id: stable-error-envelope
+    statement: >
+      A rejected emit/admission MUST surface one of the ATP-0001 Appendix C
+      ATP_ERR_* codes and MUST NOT place free-form diagnostic prose into any
+      canonical STRING/BYTES field.
+    severity: must
+    rationale: Typed errors keep the trust boundary intact (ATP-0001 §12.4).
+    validation:
+      - contract_tests

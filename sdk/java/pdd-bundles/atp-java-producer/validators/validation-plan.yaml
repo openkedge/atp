@@ -1,0 +1,106 @@
+validation_plan:
+  # Every invariant maps to at least one validator mechanism and to a concrete
+  # test in src/test/java. Golden-vector validators consume the checked-in
+  # test-vectors/*.json without modifying expected output (ATP-0001 §18.2).
+
+  structural:
+    - id: manifest-cbor-golden
+      validates: [manifest-canonical-cbor, field-def-shape]
+      method: golden_vector_bytes
+      test: ConformanceVectorTest.cvCore001ManifestCbor, SchemaVectorTest.canonicalCbor
+      vectors: [CV-CORE-001.json, schema-vectors.json]
+    - id: schema-digest-golden
+      validates: [schema-digest-content-address, cross-language-digest-identity]
+      method: golden_vector_bytes
+      test: ConformanceVectorTest.cvCore001SchemaDigest, SchemaVectorTest.schemaDigest
+      vectors: [CV-CORE-001.json, schema-vectors.json]
+    - id: record-layout-golden
+      validates: [record-canonical-layout, nan-and-float-canonicalization]
+      method: golden_vector_bytes
+      test: ConformanceVectorTest.cvCore001Records, RecordCodecPropertyTest.minimalVarints
+      vectors: [CV-CORE-001.json]
+    - id: batch-wire-golden
+      validates: [batch-wire-layout, previous-root-chaining]
+      method: golden_vector_bytes
+      test: ConformanceVectorTest.cvCore001BatchWire
+      vectors: [CV-CORE-001.json]
+    - id: entity-id-validation
+      validates: [entity-id-syntax]
+      method: unit_tests
+      test: EntityIdTest.acceptsCanonical, EntityIdTest.rejectsMalformed
+    - id: type-mapping-checks
+      validates: [type-mapping-total, intent-ref-primitive-gating]
+      method: build_time_rejection
+      test: SchemaBinderTest.rejectsUnmappableComponent, SchemaBinderTest.rejectsIntentOnObservation
+    - id: opaque-ref-structure-golden
+      validates: [opaque-ref-structure]
+      method: golden_vector_bytes
+      test: OpaqueRefTest.structureMatchesVectors
+      vectors: [conformance-vectors.json]
+    - id: error-envelope-contract
+      validates: [stable-error-envelope]
+      method: contract_tests
+      test: ErrorEnvelopeTest.rejectionsCarryAtpErrCode
+
+  behavioral:
+    - id: digest-identity-property
+      validates: [cross-language-digest-identity]
+      method: property_based_test
+      test: ConformanceVectorTest.digestMatchesIndependentStacks
+    - id: encode-determinism-replay
+      validates: [encode-determinism]
+      method: replay_test
+      test: DeterminismTest.repeatedEncodeIsByteIdentical
+    - id: dual-path-differential
+      validates: [dual-path-equivalence]
+      method: differential_test
+      test: DualPathTest.emitterEqualsCore
+    - id: two-argument-floor-shape
+      validates: [two-argument-floor]
+      method: api_shape_test
+      test: ApiShapeTest.noFreeFormCanonicalEmit
+    - id: epoch-monotonicity
+      validates: [monotonic-boot-epoch]
+      method: state_transition_test
+      test: ProducerStateTest.bootEpochStrictlyIncreasesAcrossRestart
+    - id: sequence-continuity
+      validates: [contiguous-sequence]
+      method: state_transition_test
+      test: ProducerStateTest.sequenceContiguousNoGaps, ProducerStateTest.tripleUniqueForAllTime
+    - id: chain-continuity
+      validates: [previous-root-chaining]
+      method: state_transition_test
+      test: ProducerStateTest.previousRootChainsAcceptedRoots
+    - id: exact-retransmit
+      validates: [exact-byte-retransmit]
+      method: idempotency_test
+      test: ProducerStateTest.retransmitIsByteIdentical
+    - id: back-pressure-no-drop
+      validates: [never-drop-fail-closed]
+      method: fault_injection_test
+      test: BackpressureTest.fullBufferBlocksOrFailsClosedNeverDrops
+    - id: signature-golden-and-roundtrip
+      validates: [signature-over-batch-root]
+      method: crypto_roundtrip_test
+      test: ConformanceVectorTest.cvCore001Signature, CryptoTest.signVerifyRoundtrip
+
+  operational:
+    - id: capability-conformance
+      validates: [capability-manifest-conformance, tcb-owns-trust-path, no-network-on-call-path, durable-before-transmit]
+      method: sandbox_policy_check
+      test: ApiShapeTest.trustPathNotAppSettable, CallPathTest.emitDoesNoNetworkIo
+      note: >
+        Runtime sandbox/instrumentation is the production validator; the checked-in
+        tests assert the API surface and the in-memory transport call path.
+    - id: dependency-allowlist-scan
+      validates: [jdk-only-crypto]
+      method: dependency_scan
+      test: DependencyScanTest.noThirdPartyImports
+    - id: opaque-boundary-static
+      validates: [opaque-not-inline]
+      method: static_analysis
+      test: OpaqueRefTest.slf4jBridgeRoutesProseToOpaque
+    - id: key-registry-binding
+      validates: [key-registry-one-to-one]
+      method: config_validation_test
+      test: KeyRegistryTest.conflictingBindingFailsClosed

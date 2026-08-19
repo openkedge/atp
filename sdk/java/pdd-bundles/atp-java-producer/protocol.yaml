@@ -1,0 +1,65 @@
+protocol:
+  name: atp-java-producer
+  version: 0.1.0
+  status: draft
+  # PDD governs admission of any candidate implementation of this protocol.
+  # "Code is transient; protocol is sovereign." The durable artifacts are the
+  # ATP-0002 schema manifest bytes and the ATP-0001 wire bytes; the Java SDK is
+  # one admissible binding to them (ATP Java SDK DESIGN.md §5.1).
+  governs: >
+    A Java library that lets an existing JVM application emit ATP v0.1 evidence
+    with log4j-comparable call-site ergonomics, such that its bytes are
+    bit-identical to any other Conformant Producer (ATP-0001 §18.1) derived from
+    the same logical schema and inputs.
+  normative_references:
+    - ATP-0001 Core Protocol v0.1 (§4 identity, §6 record, §7 batch, §8 producer, §12 opaque, §18 conformance)
+    - ATP-0002 Schema Manifest Format v0.1 (§2 manifest, §4 constraints, §6 canonicalization/digest)
+    - test-vectors/CV-CORE-001.json (golden cross-language vector; ATP-0001 Appendix B)
+    - sdk/java/DESIGN.md (ATP Java Producer SDK design note)
+
+purpose: >
+  Define the protocol a Java producer must satisfy to be admitted as an
+  ATP-0001 Conformant Producer. The protocol fixes the app-facing handshake
+  (emit a typed event about a canonical entity), the deterministic derivation
+  from an annotated Java record to a canonical ATP-0002 schema manifest and its
+  content-addressed digest H_S, the byte-exact canonical record and batch
+  encodings, the RFC 6962 Merkle commitment, the batch_root preimage, and the
+  strict Ed25519 signature over that root. Admission requires reproducing the
+  golden bytes of CV-CORE-001 and obeying the ATP-0001 §8 producer state-machine
+  invariants (monotonic epoch, contiguous sequence, previous_root chaining,
+  never-drop back-pressure, exact-byte retransmission).
+
+boundary:
+  in_scope:
+    - The producer-side app-facing API surface (emit(entity, event) / emit(event)).
+    - Deterministic mapping from an annotated Java record type to a canonical ATP-0002 manifest.
+    - Content-addressed schema identity H_S computed over the canonical manifest bytes.
+    - Canonical record encoding (schema_ref, entity_ref, time_delta, presence bitmap, positional values).
+    - Canonical batch encoding, RFC 6962 merkle_root, batch_root preimage, and strict Ed25519 signing.
+    - Canonical EntityId syntax and epoch-cumulative alias assignment.
+    - Canonical OpaqueRef construction for out-of-band payloads (@Opaque).
+    - Producer durable invariants (ATP-0001 §8): monotonic boot_epoch, contiguous sequence,
+      previous_root chaining, exact-byte retransmit, fail-closed back-pressure (never silent drop).
+    - Cross-language digest identity (ATP-0001 §1.6): a Java-derived H_S equals a Go/Rust/Python H_S.
+  out_of_scope:
+    - The collector, verifier internals, storage engine, and transport wire framing (ATP-0001 §1.4).
+    - Any gateway / LLM / MCP integration (ATP-0005 profile).
+    - Coverage verification and chain-head checkpoints (ATP-0001 §10, §11) — verifier concerns.
+    - The compile-time annotation processor (deferred to a later revision; see ambiguity-log.md).
+    - Free-form / unstructured logging as canonical evidence (forbidden; ATP-0001 §12.4).
+
+handshakes:
+  # The protocol-visible "request" is a single emit call: a typed event about a
+  # canonical entity. The "response" is a RecordHandle whose acknowledgement
+  # resolves on collector commit (ATP-0001 §9.1 stage 13).
+  request_schema: schemas/request.schema.json
+  response_schema: schemas/response.schema.json
+
+invariants:
+  structural: invariants/structural.yaml
+  behavioral: invariants/behavioral.yaml
+  operational: invariants/operational.yaml
+
+capabilities: capability-manifest.yaml
+validators: validators/validation-plan.yaml
+evidence: evidence-requirements.yaml

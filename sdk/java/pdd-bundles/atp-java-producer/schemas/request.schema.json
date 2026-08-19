@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "request.schema.json",
+  "title": "AtpEmitRequest",
+  "description": "The protocol-visible emit handshake: one typed event about one canonical entity. The two-argument floor (event + entity) is mandatory; free-form prose is not admissible (ATP-0001 §3, §12.4). This is the logical contract, not a wire message — the wire artifact is the ATP-0001 batch.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "protocol_version": {
+      "description": "ATP wire version. v0.1 is exactly 0x0001.",
+      "type": "string",
+      "const": "0.1"
+    },
+    "schema_id": {
+      "description": "Content-addressed schema identity H_S = SHA-256(D_MANIFEST || CanonicalCBOR(manifest)), lowercase hex.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "primitive": {
+      "description": "ATP primitive fixed by the annotation kind. StateCheckpoint (3) is SDK-emitted, never app-authored.",
+      "type": "string",
+      "enum": ["transition", "observation", "relation"]
+    },
+    "entity": {
+      "description": "Canonical entity identity, namespace:resource_type:canonical_identifier (ATP-0001 §4.1). Required unless bound once via forEntity(...).",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 1024,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._-]*:[\\x21-\\x7e]+$"
+    },
+    "fields": {
+      "description": "Typed field values keyed by their record slot index (dense 0..k-1). Each value is a typed scalar per the resolved schema; absent optional slots are omitted.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[0-9]+$" }
+    },
+    "event_time_unix_ms": {
+      "description": "Optional caller-supplied event time; default is call time. The SDK derives the batch-relative time_delta (ATP-0001 §6.1).",
+      "type": ["integer", "null"],
+      "minimum": 0
+    }
+  },
+  "required": ["schema_id", "entity", "fields"]
+}

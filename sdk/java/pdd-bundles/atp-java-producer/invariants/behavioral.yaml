@@ -1,0 +1,133 @@
+behavioral_invariants:
+  # B — determinism, idempotence, monotonicity, ordering, failure semantics,
+  # and state-transition properties that hold across runs and implementations.
+
+  - id: cross-language-digest-identity
+    statement: >
+      H_S MUST depend only on the canonical manifest bytes, so the same logical
+      schema authored in Java yields the identical H_S a Go/Rust/Python SDK
+      derives from the same manifest.
+    severity: must
+    rationale: ATP-0001 §1.6 — two independent implementations, one digest.
+    property: "manifest(a) == manifest(b) => H_S(a) == H_S(b), independent of language"
+    validation:
+      - golden_vector_bytes   # Java digest == Rust/Python reference digest
+      - property_based_test   # field declaration order and enum ordinal order are the only orderings used
+
+  - id: encode-determinism
+    statement: >
+      Given the same schema, entity aliases, values, base_time and time_delta, the
+      producer MUST emit byte-identical records and batches on every run and JVM.
+    severity: must
+    rationale: Determinism is required for exact-byte idempotence and replay (ATP-0001 §9.2).
+    property: "encode(x) = y => encode(x) = y on every invocation"
+    validation:
+      - replay_test
+
+  - id: dual-path-equivalence
+    statement: >
+      The app-facing emitter path (annotated record -> reflection binder -> emit)
+      and the low-level core path MUST produce identical manifest, record, and
+      batch bytes for the same logical inputs.
+    severity: must
+    rationale: >
+      DESIGN §5.5 — the compile-time and runtime paths, and the ergonomic and core
+      APIs, MUST produce identical bytes or the convenience layer is a second
+      source of truth.
+    validation:
+      - differential_test
+
+  - id: two-argument-floor
+    statement: >
+      A conformant emit MUST require a typed event and a canonical entity
+      (emit(entity, event) or emit(event) after forEntity); the API MUST NOT offer
+      a path that accepts free-form prose as canonical evidence.
+    severity: must
+    rationale: Accepting arbitrary strings re-creates logging and forfeits verifiability (ATP-0001 §3, §12.4).
+    validation:
+      - api_shape_test
+
+  - id: monotonic-boot-epoch
+    statement: >
+      Every process start MUST obtain a boot_epoch strictly greater than every
+      epoch this producer previously created, drawn from durable atomic state or a
+      trusted external monotonic allocator.
+    severity: must
+    rationale: Epoch monotonicity anchors sequence uniqueness across restarts (ATP-0001 §8.2).
+    property: "restart => boot_epoch' > max(previous boot_epochs)"
+    validation:
+      - state_transition_test
+
+  - id: contiguous-sequence
+    statement: >
+      Within an epoch, first_sequence MUST equal the preceding batch's exclusive
+      sequence end, records advance sequence with no gaps or duplicates, and the
+      triple (producer_id, boot_epoch, sequence) MUST be unique for all time.
+    severity: must
+    rationale: Sequence continuity is what makes coverage gaps detectable (ATP-0001 §7.6, §8.1).
+    validation:
+      - state_transition_test
+      - property_based_test
+
+  - id: previous-root-chaining
+    statement: >
+      An epoch-genesis batch MUST set previous_root = 32 zero bytes; every later
+      batch MUST set previous_root to the immediately preceding accepted batch_root.
+    severity: must
+    rationale: The chain binds batch order into a tamper-evident sequence (ATP-0001 §7.6).
+    validation:
+      - state_transition_test
+      - golden_vector_bytes   # CV-CORE-001 genesis previous_root == 0*32
+
+  - id: exact-byte-retransmit
+    statement: >
+      After a transmission timeout the producer MUST retransmit the exact sealed
+      batch bytes, including signing_key_id and signature, not a re-encoding.
+    severity: must
+    rationale: Only byte-identity yields idempotent re-acknowledgement (ATP-0001 §8.1, §9.2).
+    property: "sealed(b) => retransmit(b) == b"
+    validation:
+      - idempotency_test
+      - replay_test
+
+  - id: never-drop-fail-closed
+    statement: >
+      On a full durable buffer the producer MUST back-pressure (block) or fail the
+      emit closed with a typed error; it MUST NOT silently discard evidence.
+    severity: must
+    rationale: Silent loss produces undetectable coverage gaps (ATP-0001 §8.4).
+    validation:
+      - fault_injection_test
+      - side_effect_trace
+
+  - id: intent-ref-primitive-gating
+    statement: >
+      intent_ref MUST be permitted only on Transition and Relation primitives and
+      MUST be a 32-byte value; an intent_ref declared on an Observation MUST be
+      rejected at bind/build time, not at collector-reject time.
+    severity: must
+    rationale: Static enforcement of ATP-0001 §3.3 moves the failure left (DESIGN §4).
+    validation:
+      - build_time_rejection
+      - unit_tests
+
+  - id: signature-over-batch-root
+    statement: >
+      signature MUST equal Ed25519.Sign(private_key, batch_root) over exactly the
+      32-byte batch_root and MUST verify under strict RFC 8032 verification.
+    severity: must
+    rationale: The signature authenticates the whole batch via its root (ATP-0001 §7.5).
+    validation:
+      - golden_vector_bytes   # CV-CORE-001.signature
+      - crypto_roundtrip_test
+
+  - id: nan-and-float-canonicalization
+    statement: >
+      F32 NaN MUST encode as 0x7fc00000 and F64 NaN as 0x7ff8000000000000; all
+      other IEEE-754 bit patterns, including negative zero and infinities, MUST be
+      preserved exactly.
+    severity: must
+    rationale: A single NaN encoding keeps float-bearing records byte-deterministic (ATP-0001 §6.3).
+    validation:
+      - unit_tests
+      - property_based_test

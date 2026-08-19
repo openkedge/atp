@@ -1,0 +1,32 @@
+evidence_requirements:
+  # Evidence sufficient to answer: which protocol version governed admission,
+  # which artifact was validated, which validators ran, what was observed, in
+  # which environment, and whether the decision can be replayed.
+  required:
+    - protocol_version              # atp-java-producer 0.1.0 targeting ATP wire 0x0001
+    - implementation_artifact_hash  # SHA-256 of the built SDK jar / class output
+    - validator_versions            # test harness + JDK vendor/version
+    - validation_results            # per-invariant PASS/FAIL from the test runner
+    - dependency_manifest           # runtime deps (JDK modules only; no third-party)
+    - discovery_log                 # golden bytes reproduced, per vector id
+  golden_bytes_reproduced:
+    # The admission-critical evidence: exact byte strings the build reproduced.
+    - vector: CV-CORE-001.json
+      artifacts: [schema_manifest_canonical_cbor, schema_digest_sha256, records, merkle_root, batch_root, signature, batch_wire]
+    - vector: schema-vectors.json
+      artifacts: [canonical_cbor, schema_digest_sha256]     # SV-001..SV-006
+    - vector: conformance-vectors.json
+      artifacts: [merkle_vectors, opaque_vectors]
+    continuity_anchor: b8fafb40cf935d94f1ef933ce411f5d7d881a82413fc463a45db30a37a4103f2
+  attestations:
+    signed: false
+    signer: null
+    note: >
+      v0.1 records reproduced golden bytes as evidence; a signed attestation of
+      the test-run result is a deferred enhancement (see ambiguity-log.md).
+  replay:
+    deterministic_replay_required: true
+    required_environment_metadata:
+      - runtime            # e.g. OpenJDK/Corretto major version
+      - operating_system
+      - dependency_lockfile  # none required; build is dependency-free (javac)

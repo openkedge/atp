@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "response.schema.json",
+  "title": "AtpRecordHandle",
+  "description": "The protocol-visible response to an emit: the durable evidence coordinate assigned to the record and its delivery lifecycle. Acknowledgement resolves on collector commit (ATP-0001 §9.1 stage 13).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "producer_id": {
+      "description": "Registry-assigned 128-bit producer identifier, lowercase hex (16 bytes).",
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "boot_epoch": {
+      "description": "Durable strictly-increasing epoch for this producer (ATP-0001 §8.2).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "sequence": {
+      "description": "Per-(producer_id, boot_epoch) monotonic record sequence. The triple (producer_id, boot_epoch, sequence) is unique for all time (ATP-0001 §8.1).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "status": {
+      "description": "Delivery lifecycle. A record is never silently dropped (ATP-0001 §8.4); on back-pressure the emit blocks or fails closed rather than returning a drop.",
+      "type": "string",
+      "enum": ["buffered", "sealed", "acknowledged", "rejected"]
+    },
+    "error": {
+      "description": "Present only when status is rejected. code is an ATP-0001 Appendix C error code.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^ATP_ERR_[A-Z_]+$"
+        },
+        "message": { "type": "string" }
+      },
+      "required": ["code"]
+    }
+  },
+  "required": ["producer_id", "boot_epoch", "sequence", "status"]
+}
