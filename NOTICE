@@ -1,0 +1,9 @@
+Agent Telemetry Protocol (ATP)
+Copyright 2026 Jun He, Deying Yu, and ATP contributors
+
+This product includes specifications, conformance vectors, and reference
+software developed by OpenKedge.io contributors.
+
+The file agent-native-logging.pdf is included as informative research
+background. It is not part of the normative ATP conformance contract and is not
+relicensed by the Apache License in this repository.

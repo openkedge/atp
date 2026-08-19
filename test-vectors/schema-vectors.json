@@ -1,0 +1,200 @@
+{
+  "suite": "ATP-0002 schema manifest vectors",
+  "crypto": {
+    "hash": "SHA-256",
+    "canonical_form": "RFC 8949 s4.2.1 CBOR",
+    "domain_prefix": "ATP/0.1/schema-manifest"
+  },
+  "positive": [
+    {
+      "vector_id": "SV-001",
+      "description": "Minimal Observation manifest, single required F64 field.",
+      "canonical_cbor": "a60174686f73742e6370752e7574696c697a6174696f6e0265312e302e30030104716f70656e6b656467652e696f2f686f73740581a5010002676370755f706374030604f505613106a0",
+      "schema_digest_sha256": "efa37c3907cb5331167431461e5d4ae65a250d98b486061ec3f3ab69590efe4a"
+    },
+    {
+      "vector_id": "SV-002",
+      "description": "k8s.pod.transition:1.0.0 \u2014 continuity anchor; digest MUST equal ATP-0001 CV-CORE-001.",
+      "canonical_cbor": "a601726b38732e706f642e7472616e736974696f6e0265312e302e30030004706f70656e6b656467652e696f2f6b38730584a5010002696f6c645f7374617465030704f50669706f645f7068617365a5010102696e65775f7374617465030704f50669706f645f7068617365a401020269657869745f636f6465030304f4a401030266726561736f6e030804f406a169706f645f7068617365856750656e64696e676752756e6e696e6769537563636565646564664661696c656467556e6b6e6f776e",
+      "schema_digest_sha256": "b8fafb40cf935d94f1ef933ce411f5d7d881a82413fc463a45db30a37a4103f2",
+      "continuity_ok": true
+    },
+    {
+      "vector_id": "SV-003",
+      "description": "One field per value type 0..13 \u2014 locks manifest encoding of every type code.",
+      "canonical_cbor": "a601781a746573742e616c6c5f74797065732e6f62736572766174696f6e0265312e302e30030104716f70656e6b656467652e696f2f74657374058ea401000266665f626f6f6c030004f5a401010265665f753332030104f5a401020265665f753634030204f5a401030265665f693332030304f5a401040265665f693634030404f5a401050265665f663332030504f5a401060265665f663634030604f5a501070266665f656e756d030704f50665636f6c6f72a501080268665f737472696e67030804f507a101190100a501090267665f6279746573030904f507a101190100a4010a026e665f74696d657374616d705f6d73030a04f5a4010b026c665f656e746974795f726566030b04f5a4010c026c665f6f70617175655f726566030c04f5a4010d026d665f6475726174696f6e5f6d73030d04f506a165636f6c6f72836372656465677265656e64626c7565",
+      "schema_digest_sha256": "529c10ec6a12fbaf5e6b3689d3f71f806965a5796280e7a721fbbf5cb9710fcf"
+    },
+    {
+      "vector_id": "SV-004",
+      "description": "Determinism: SV-002 rebuilt with reversed map-key insertion order. Canonical CBOR is byte-identical.",
+      "canonical_cbor": "a601726b38732e706f642e7472616e736974696f6e0265312e302e30030004706f70656e6b656467652e696f2f6b38730584a5010002696f6c645f7374617465030704f50669706f645f7068617365a5010102696e65775f7374617465030704f50669706f645f7068617365a401020269657869745f636f6465030304f4a401030266726561736f6e030804f406a169706f645f7068617365856750656e64696e676752756e6e696e6769537563636565646564664661696c656467556e6b6e6f776e",
+      "schema_digest_sha256": "b8fafb40cf935d94f1ef933ce411f5d7d881a82413fc463a45db30a37a4103f2",
+      "identical_to": "SV-002"
+    },
+    {
+      "vector_id": "SV-005",
+      "description": "Numeric range + max_len constraints and a backward-compatibility declaration (min_compatible_version 2.0.0).",
+      "canonical_cbor": "a7016e7376632e7270632e726573756c740265322e312e30030004706f70656e6b656467652e696f2f7270630583a50100026b7374617475735f636f6465030104f507a202186403190257a5010102666d6574686f64030804f507a1011840a40102026a6c6174656e63795f6d73030d04f406a007a20165322e302e300201",
+      "schema_digest_sha256": "bacae2b901bc9b8d5f33f92f7aab37b468156dabc38abfe77ff9f5222faf46a6"
+    },
+    {
+      "vector_id": "SV-006",
+      "description": "Deterministic CBOR text-key ordering uses encoded key bytes, including each key's CBOR length head.",
+      "canonical_cbor": "a6016f746573742e656e756d2e6f726465720265312e302e30030104716f70656e6b656467652e696f2f746573740582a50100026973686f72745f6b6579030704f506617aa5010102686c6f6e675f6b6579030704f50662616106a2617a81615a626161816141",
+      "schema_digest_sha256": "e931bed875ff238e1938ca68600404df64df5b27a294eb628a475c303ee69929"
+    }
+  ],
+  "negative": [
+    {
+      "vector_id": "SV-NEG-001",
+      "description": "slot gap (0,2) \u2014 non-dense slots",
+      "canonical_cbor": "a60161780265312e302e3003010461700582a40100026161030104f5a40102026162030104f506a0",
+      "reject_reason": "SLOT_NOT_DENSE:expected=1:got=2"
+    },
+    {
+      "vector_id": "SV-NEG-002",
+      "description": "duplicate slot 0",
+      "canonical_cbor": "a60161780265312e302e3003010461700582a40100026161030104f5a40100026162030104f506a0",
+      "reject_reason": "SLOT_NOT_DENSE:expected=1:got=0"
+    },
+    {
+      "vector_id": "SV-NEG-003",
+      "description": "ENUM field without enum_ref",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a40100026161030704f506a0",
+      "reject_reason": "ENUM_MISSING_ENUM_REF"
+    },
+    {
+      "vector_id": "SV-NEG-004",
+      "description": "unknown value type code 99",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a4010002616103186304f506a0",
+      "reject_reason": "UNKNOWN_TYPE:99"
+    },
+    {
+      "vector_id": "SV-NEG-005",
+      "description": "max_len constraint on non-length type U32",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030104f507a1010a06a0",
+      "reject_reason": "MAX_LEN_ON_NONLEN_TYPE:U32"
+    },
+    {
+      "vector_id": "SV-NEG-006",
+      "description": "enum_ref pointing to undefined enum",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030704f506676d697373696e6706a0",
+      "reject_reason": "ENUM_REF_UNRESOLVED:missing"
+    },
+    {
+      "vector_id": "SV-NEG-007",
+      "description": "duplicate field name",
+      "canonical_cbor": "a60161780265312e302e3003010461700582a40100026161030104f5a40101026161030104f506a0",
+      "reject_reason": "DUP_FIELD_NAME:a"
+    },
+    {
+      "vector_id": "SV-NEG-008",
+      "description": "invalid SemVer",
+      "canonical_cbor": "a60161780262763103010461700581a40100026161030104f506a0",
+      "reject_reason": "BAD_SCHEMA_VERSION"
+    },
+    {
+      "vector_id": "SV-NEG-009",
+      "description": "unknown manifest key",
+      "canonical_cbor": "a70161780265312e302e3003010461700581a40100026161030104f506a01863f5",
+      "reject_reason": "UNKNOWN_MANIFEST_KEY:99"
+    },
+    {
+      "vector_id": "SV-NEG-010",
+      "description": "unknown field-def key",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030104f51863f506a0",
+      "reject_reason": "UNKNOWN_FIELD_KEY:99"
+    },
+    {
+      "vector_id": "SV-NEG-011",
+      "description": "enum_ref on a non-ENUM field",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030104f506617806a16178816141",
+      "reject_reason": "ENUM_REF_ON_NONENUM:a"
+    },
+    {
+      "vector_id": "SV-NEG-012",
+      "description": "zero max_len",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030804f507a1010006a0",
+      "reject_reason": "BAD_MAX_LEN:a"
+    },
+    {
+      "vector_id": "SV-NEG-013",
+      "description": "max_len above the hard ceiling",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030804f507a10119100106a0",
+      "reject_reason": "BAD_MAX_LEN:a"
+    },
+    {
+      "vector_id": "SV-NEG-014",
+      "description": "numeric min greater than max",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030104f507a20202030106a0",
+      "reject_reason": "MIN_GT_MAX:a"
+    },
+    {
+      "vector_id": "SV-NEG-015",
+      "description": "negative lower bound on unsigned type",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030104f507a1022006a0",
+      "reject_reason": "UNSIGNED_RANGE_OUT_OF_DOMAIN:a"
+    },
+    {
+      "vector_id": "SV-NEG-016",
+      "description": "compatibility mode outside registry",
+      "canonical_cbor": "a70161780265312e302e3003010461700581a40100026161030104f506a007a20165312e302e300209",
+      "reject_reason": "BAD_COMPATIBILITY_MODE"
+    },
+    {
+      "vector_id": "SV-NEG-017",
+      "description": "missing required enums map",
+      "canonical_cbor": "a50161780265312e302e3003010461700581a40100026161030104f5",
+      "reject_reason": "MISSING_KEY:6"
+    },
+    {
+      "vector_id": "SV-NEG-018",
+      "description": "intent_ref on Observation",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a40100026a696e74656e745f726566030904f406a0",
+      "reject_reason": "BAD_INTENT_REF"
+    },
+    {
+      "vector_id": "SV-NEG-019",
+      "description": "intent_ref with non-BYTES type",
+      "canonical_cbor": "a60161780265312e302e3003000461700581a40100026a696e74656e745f726566030804f406a0",
+      "reject_reason": "BAD_INTENT_REF"
+    },
+    {
+      "vector_id": "SV-NEG-020",
+      "description": "duplicate enum member",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030704f506616506a161658261416141",
+      "reject_reason": "DUP_ENUM_MEMBER:e"
+    },
+    {
+      "vector_id": "SV-NEG-021",
+      "description": "numeric prerelease identifier has a leading zero",
+      "canonical_cbor": "a60161780268312e302e302d303103010461700581a40100026161030104f506a0",
+      "reject_reason": "BAD_SCHEMA_VERSION"
+    },
+    {
+      "vector_id": "SV-NEG-022",
+      "description": "empty prerelease identifier",
+      "canonical_cbor": "a60161780266312e302e302d03010461700581a40100026161030104f506a0",
+      "reject_reason": "BAD_SCHEMA_VERSION"
+    },
+    {
+      "vector_id": "SV-NEG-023",
+      "description": "constraint exceeds the signed 64-bit domain",
+      "canonical_cbor": "a60161780265312e302e3003010461700581a50100026161030204f507a1031b800000000000000006a0",
+      "reject_reason": "BAD_CONSTRAINT_VALUE:a:3"
+    },
+    {
+      "vector_id": "SV-NEG-024",
+      "description": "compatibility minimum is newer than this schema",
+      "canonical_cbor": "a70161780265312e302e3003010461700581a40100026161030104f506a007a20165322e302e300201",
+      "reject_reason": "BAD_COMPATIBILITY_RANGE"
+    },
+    {
+      "vector_id": "SV-NEG-025",
+      "description": "NONE compatibility must name this exact version",
+      "canonical_cbor": "a70161780265322e302e3003010461700581a40100026161030104f506a007a20165312e302e300200",
+      "reject_reason": "BAD_COMPATIBILITY_RANGE"
+    }
+  ]
+}
